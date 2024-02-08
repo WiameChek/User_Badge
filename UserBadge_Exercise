@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Badge Verifier</title>
+</head>
+<body>
+    <input type="file" id="badgeInput" accept="image/*"> <!-- Accept all image types -->
+    <div id="verificationResult"></div> <!-- Result display area -->
+
+    <script>
+        // Verifying badge requirements
+        function verifyBadge(image) {
+
+            // Checking if the size is 512x512 pixels
+            if (image.width !== 512 || image.height !== 512) {
+                return "Badge size must be 512x512 pixels";
+            }
+
+            // Verifying that the non-transparent pixels are within a circle
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            canvas.width = image.width;
+            canvas.height = image.height;
+            ctx.drawImage(image, 0, 0);
+
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const pixels = imageData.data;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = canvas.width / 2; 
+
+            for (let i = 0; i < pixels.length; i += 4) {
+                const alpha = pixels[i + 3]; // Alpha value (transparency) of the pixel
+                const x = (i / 4) % canvas.width;
+                const y = Math.floor((i / 4) / canvas.width);
+
+                const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+
+                // If the pixel is non-transparent and outside the circle, return false
+                if (alpha !== 0 && distance > radius) {
+                    return "Non-transparent pixels are outside the circle";
+                }
+            }
+
+            // Analyzing the colors to ensure they give a "happy" feeling
+            let happyColors = ["#ffd700", "#ff69b4", "#ff4500"]; // Example of happy colors
+            let pixelColors = extractPixelColors(imageData);
+
+            let containsHappyColors = pixelColors.some(color => happyColors.includes(color));
+            if (!containsHappyColors) {
+                return "Badge colors don't give a 'happy' feeling";
+            }
+
+            return "Badge meets all requirements";
+        }
+
+        // Auxiliary function to extract pixel colors from image data
+        function extractPixelColors(imageData) {
+            let colors = [];
+            for (let i = 0; i < imageData.data.length; i += 4) {
+                let r = imageData.data[i];
+                let g = imageData.data[i + 1];
+                let b = imageData.data[i + 2];
+                let color = rgbToHex(r, g, b);
+                colors.push(color);
+            }
+            return colors;
+        }
+
+        // Auxiliary function to convert RGB color values to hexadecimal string
+        function rgbToHex(r, g, b) {
+            return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+        }
+
+        // Event listener for file input change
+        document.getElementById("badgeInput").addEventListener("change", function(event) {
+            let file = event.target.files[0];
+            let reader = new FileReader();
+            reader.onload = function(event) {
+                let image = new Image();
+                image.onload = function() {
+                    let result = verifyBadge(image);
+                    document.getElementById("verificationResult").textContent = result; // Display result
+                };
+                image.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    </script>
+</body>
+</html>
